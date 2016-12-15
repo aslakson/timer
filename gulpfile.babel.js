@@ -2,6 +2,7 @@ const gulp = require('gulp');
 const plumber = require('gulp-plumber');
 const sass = require('gulp-sass');
 const browserify = require('gulp-browserify');
+const replace = require('gulp-replace');
 const config = require('./config');
 const webserver = require('gulp-webserver');
 
@@ -21,10 +22,16 @@ gulp.task('browserify', () => {
     .pipe(gulp.dest(config.paths.js.out));
 });
 
+gulp.task('indexfile', () => {
+  gulp.src(config.paths.html.in)
+    .pipe(replace('/docs/', '/'))
+    .pipe(gulp.dest(config.paths.html.out));
+});
+
 gulp.task('webserver', () => {
   gulp.src('.')
     .pipe(webserver({
-      fallback: './src/timer.html',
+      fallback: './src/index.html',
       host: config.server.host,
       port: config.server.port,
       livereload: true,
@@ -32,12 +39,12 @@ gulp.task('webserver', () => {
     }));
 });
 
-
 gulp.task('watch', () => {
   gulp.watch(config.paths.scss.in, ['sass']);
   gulp.watch(config.paths.js.in, ['browserify']);
 });
 
 gulp.task('build', ['browserify', 'sass']);
+gulp.task('publish', ['browserify', 'sass', 'indexfile']);
 
 gulp.task('default', ['build', 'webserver', 'watch']);

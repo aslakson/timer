@@ -1,20 +1,16 @@
-// Configuration file
-
-/**
- * Gulp
- * => Paths
- * 'in' and 'out' keys are your input and output folders
- * e.g: 'in': './src/js/*.babel.js', 'out': './dist/js'
- */
 const paths = {
+  html: {
+    in: './src/index.html',
+    out: './docs',
+  },
   scss: {
     in: './src/scss/*.scss',
-    out: './dist/css',
+    out: './docs/css',
   },
   js: {
     entryFile: './src/js/index.js',
     in: './src/js/*.js',
-    out: './dist/js',
+    out: './docs/js',
   },
 };
 

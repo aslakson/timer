@@ -1,4 +1,4 @@
-import { utils } from './timer';
+import Timers from './timers';
 
 const ready = (fn) => {
   if (document.readyState !== 'loading') {
@@ -9,8 +9,10 @@ const ready = (fn) => {
 };
 
 ready(() => {
-  const counterEl = document.getElementById('timers');
-  const formEl = document.getElementById('timer-form');
-  formEl.addEventListener('submit', e => utils.handleFormSubmit(e, counterEl));
-  utils.createTimersFromStore(counterEl);
+  const timers = new Timers('directions');
+  const timerLink = document.getElementById('timers-trigger');
+  timerLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    timers.show();
+  });
 });
