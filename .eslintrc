@@ -1,0 +1,8 @@
+{
+  "globals": {
+    "Audio": true,
+    "window": true,
+    "document": true
+  },
+  "extends": "airbnb"
+}

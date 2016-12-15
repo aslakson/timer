@@ -1,0 +1,33 @@
+{
+  "name": "atk-timer",
+  "description": "Simple countdown clocks for cooking",
+  "author": "aslakson",
+  "version": "1.0.0",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": "",
+  "keywords": [
+    "babel",
+    "sass",
+    "browserify",
+    "boilerplate",
+    "gulp"
+  ],
+  "dependencies": {
+    "babel-preset-es2015": "^6.9.0",
+    "babelify": "^7.3.0",
+    "eslint": "^3.12.2",
+    "eslint-config-airbnb": "^13.0.0",
+    "eslint-plugin-import": "^2.2.0",
+    "eslint-plugin-jsx-a11y": "^2.2.3",
+    "eslint-plugin-react": "^6.8.0",
+    "gulp": "^3.9.1",
+    "gulp-browserify": "^0.5.1",
+    "gulp-plumber": "^1.1.0",
+    "gulp-sass": "^2.3.2",
+    "gulp-webserver": "^0.9.1",
+    "js-cookie": "^2.1.3"
+  },
+  "license": "MIT"
+}
