@@ -24,7 +24,7 @@ gulp.task('browserify', () => {
 
 gulp.task('indexfile', () => {
   gulp.src(config.paths.html.in)
-    .pipe(replace('/docs/', '/'))
+    .pipe(replace('/docs/', '/timer/'))
     .pipe(gulp.dest(config.paths.html.out));
 });
 
