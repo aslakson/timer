@@ -57,7 +57,7 @@ class TimerList {
 
   getStoredTimers() {
     const timers = cookie.getJSON(constants.cookieName) || [];
-    return timers.map(this.createTimer);
+    return timers.map(this.createTimer.bind(this));
   }
 
   handleFormSubmit(e) {

@@ -9,24 +9,26 @@ class TimerItem {
 
     const [parsedMinutes, parsedSeconds] = utils.parseSeconds(secondClock || totalSeconds);
     this.minuteClock = parsedMinutes;
-    this.secondClock = secondClock || parsedSeconds;
+    this.secondClock = parsedSeconds;
 
-    this.active = active;
     this.bingCount = 3;
     this.tickTimeout = null;
     this.alarmInterval = null;
     this.bingSound = new Audio(sounds.beep);
+    this.boundBing = this.bing.bind(this);
+    this.boundRun = this.run.bind(this);
+    this.boundSpeak = this.speak.bind(this);
+    this.boundClickHandler = this.handleClick.bind(this);
 
     this.el = this.createElement();
     this.counterEl = this.el.querySelector('.time-remaining');
     this.buttons = this.el.getElementsByTagName('button');
-    this.el.addEventListener('click', this.handleClick.bind(this));
+    this.el.addEventListener('click', this.boundClickHandler);
 
-    if (this.active) {
-      this.unpause();
-    } else {
-      this.pause();
-    }
+    this.deleted = false;
+    this.pending = false;
+    this.active = active;
+    this.completed = parsedMinutes + parsedSeconds === 0;
   }
 
   handleClick(e) {
@@ -40,12 +42,13 @@ class TimerItem {
   }
 
   toJSON() {
-    return {
+    const JSON = {
       active: this.active,
-      secondClock: this.secondClock,
+      secondClock: this.secondClock + (this.minuteClock * 60),
       name: this.name,
       totalSeconds: this.totalSeconds,
     };
+    return JSON;
   }
 
   tickTemplate(min, sec) {
@@ -56,7 +59,9 @@ class TimerItem {
     return `
       <div class="times">
         <span class="timer-name">${name}:</span>
-        <span class="time-remaining">${time}</span>
+        <span class="clock">
+          <span class="time-remaining">${time}</span>
+        </span>
       </div>
       <div class="buttons">
         <button class="pause" data-action="pause"><svg width="10" height="10"><rect fill="#000" width="10" height="10" /></svg></button>
@@ -79,15 +84,27 @@ class TimerItem {
     return timerEl;
   }
 
+  set deleted(isDeleted) {
+    if (this.active || (this.deleted && isDeleted)) return;
+    this._deleted = isDeleted;
+    if (isDeleted) {
+      this.el.classList.add('deleted');
+    } else {
+      this.el.classList.remove('deleted');
+    }
+  }
+
+  get deleted() {
+    return this._deleted;
+  }
+
   delete() {
-    if (this.active) return;
+    if (this.active) return false;
     this.deleted = true;
-    this.el.classList.add('deleted');
   }
 
   undelete() {
-    delete this.deleted;
-    this.el.classList.remove('deleted');
+    this.deleted = false;
   }
 
   reset() {
@@ -95,7 +112,8 @@ class TimerItem {
     const [parsedMinutes, parsedSeconds] = utils.parseSeconds(this.totalSeconds);
     this.minuteClock = parsedMinutes;
     this.secondClock = parsedSeconds;
-    this.pause();
+    this.active = false;
+    this.completed = false;
 
     const evenMinute = this.secondClock % 60 === 0;
     this.counterEl.innerHTML = this.tickTemplate(
@@ -104,42 +122,55 @@ class TimerItem {
     );
   }
 
-  pause() {
-    if (this.deleted) return;
-    this.active = false;
-    clearTimeout(this.tickTimeout);
-    this.el.classList.add('paused');
-    if (this.counterEl.classList.contains('pending')) {
-      this.makeunPending();
+  set active(isActive) {
+    if (this.deleted || (this.active && isActive)) return;
+    this._active = isActive;
+    if (isActive) {
+      this.tick();
+      this.el.classList.remove('paused');
+      if (this.minuteClock === 0 && this.secondClock < 5) {
+        this.pending = true;
+      }
+    } else {
+      clearTimeout(this.tickTimeout);
+      this.el.classList.add('paused');
+      this.pending = false;
     }
+  }
+
+  get active() {
+    return this._active;
+  }
+
+  pause() {
+    this.active = false;
   }
 
   unpause() {
-    if (this.deleted) return;
     this.active = true;
-    this.tick();
-    this.el.classList.remove('paused');
-    if (this.secondClock < 10) {
-      this.makePending();
-    }
   }
 
   setMinutes() {
-    this.secondClock = this.minuteClock * 60;
+    this.secondClock = 60;
     this.minuteClock -= 1;
     this.tick();
   }
 
-  tick() {
-    this.tickTimeout = setTimeout(this.run.bind(this), 1000);
+  set pending(isPending) {
+    if (this.pending && isPending) return false;
+    this._pending = isPending;
+    if (isPending) {
+      this.counterEl.classList.add('pending');
+    } else {
+      this.counterEl.classList.remove('pending');
+    }
   }
 
-  makePending() {
-    this.counterEl.classList.add('pending');
-  }
-
-  makeunPending() {
-    this.counterEl.classList.remove('pending');
+  speak() {
+    if (typeof window.speechSynthesis !== 'undefined') {
+      const msg = new SpeechSynthesisUtterance(`${this.name} is done!`);
+      window.speechSynthesis.speak(msg);
+    }
   }
 
   bing() {
@@ -147,18 +178,29 @@ class TimerItem {
     this.bingSound.play();
     if (this.bingCount <= 0) {
       clearInterval(this.alarmInterval);
-      this.counterEl.classList.remove('pending');
+      this.pending = false;
       this.bingCount = 3;
-      if (typeof window.speechSynthesis !== 'undefined') {
-        var msg = new SpeechSynthesisUtterance(`${this.name} is done!`);
-        window.speechSynthesis.speak(msg);
-      }
+      setTimeout(this.boundSpeak, 400);
     }
   }
 
-  finish() {
-    this.alarmInterval = setInterval(this.bing.bind(this), 1000);
-    this.el.classList.add('complete');
+  set completed(isComplete) {
+    if (this.completed && isComplete) return;
+    this._completed = isComplete;
+    if (isComplete) {
+      this.alarmInterval = setInterval(this.boundBing, 400);
+      this.el.classList.add('complete');
+    } else {
+      this.el.classList.remove('complete');
+    }
+  }
+
+  get completed() {
+    return this._completed;
+  }
+
+  tick() {
+    this.tickTimeout = setTimeout(this.boundRun, 1000);
   }
 
   run() {
@@ -168,7 +210,7 @@ class TimerItem {
       this.secondClock,
     );
     if (this.minuteClock === 0 && this.secondClock <= 10) {
-      this.makePending();
+      this.pending = true;
     }
 
     if (this.secondClock > 0) {
@@ -176,7 +218,7 @@ class TimerItem {
     } else if (this.minuteClock > 0) {
       this.setMinutes();
     } else {
-      this.finish();
+      this.completed = true;
     }
   }
 }

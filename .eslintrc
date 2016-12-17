@@ -2,7 +2,8 @@
   "globals": {
     "Audio": true,
     "window": true,
-    "document": true
+    "document": true,
+    "SpeechSynthesisUtterance": true,
   },
   "extends": "airbnb",
   "rules": {

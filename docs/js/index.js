@@ -447,24 +447,26 @@ var TimerItem = function () {
         parsedSeconds = _utils$parseSeconds2[1];
 
     this.minuteClock = parsedMinutes;
-    this.secondClock = secondClock || parsedSeconds;
+    this.secondClock = parsedSeconds;
 
-    this.active = active;
     this.bingCount = 3;
     this.tickTimeout = null;
     this.alarmInterval = null;
     this.bingSound = new Audio(_sounds2.default.beep);
+    this.boundBing = this.bing.bind(this);
+    this.boundRun = this.run.bind(this);
+    this.boundSpeak = this.speak.bind(this);
+    this.boundClickHandler = this.handleClick.bind(this);
 
     this.el = this.createElement();
     this.counterEl = this.el.querySelector('.time-remaining');
     this.buttons = this.el.getElementsByTagName('button');
-    this.el.addEventListener('click', this.handleClick.bind(this));
+    this.el.addEventListener('click', this.boundClickHandler);
 
-    if (this.active) {
-      this.unpause();
-    } else {
-      this.pause();
-    }
+    this.deleted = false;
+    this.pending = false;
+    this.active = active;
+    this.completed = parsedMinutes + parsedSeconds === 0;
   }
 
   _createClass(TimerItem, [{
@@ -481,12 +483,13 @@ var TimerItem = function () {
   }, {
     key: 'toJSON',
     value: function toJSON() {
-      return {
+      var JSON = {
         active: this.active,
-        secondClock: this.secondClock,
+        secondClock: this.secondClock + this.minuteClock * 60,
         name: this.name,
         totalSeconds: this.totalSeconds
       };
+      return JSON;
     }
   }, {
     key: 'tickTemplate',
@@ -496,7 +499,7 @@ var TimerItem = function () {
   }, {
     key: 'timerTemplate',
     value: function timerTemplate(name, time) {
-      return '\n      <div class="times">\n        <span class="timer-name">' + name + ':</span>\n        <span class="time-remaining">' + time + '</span>\n      </div>\n      <div class="buttons">\n        <button class="pause" data-action="pause"><svg width="10" height="10"><rect fill="#000" width="10" height="10" /></svg></button>\n        <button class="unpause" data-action="unpause">&#x25BA;</button>\n        <button class="reset" data-action="reset">&#x21ba;</button>\n        <button class="delete" data-action="delete">\u2715</button>\n      </div>\n    ';
+      return '\n      <div class="times">\n        <span class="timer-name">' + name + ':</span>\n        <span class="clock">\n          <span class="time-remaining">' + time + '</span>\n        </span>\n      </div>\n      <div class="buttons">\n        <button class="pause" data-action="pause"><svg width="10" height="10"><rect fill="#000" width="10" height="10" /></svg></button>\n        <button class="unpause" data-action="unpause">&#x25BA;</button>\n        <button class="reset" data-action="reset">&#x21ba;</button>\n        <button class="delete" data-action="delete">\u2715</button>\n      </div>\n    ';
     }
   }, {
     key: 'createElement',
@@ -511,15 +514,13 @@ var TimerItem = function () {
   }, {
     key: 'delete',
     value: function _delete() {
-      if (this.active) return;
+      if (this.active) return false;
       this.deleted = true;
-      this.el.classList.add('deleted');
     }
   }, {
     key: 'undelete',
     value: function undelete() {
-      delete this.deleted;
-      this.el.classList.remove('deleted');
+      this.deleted = false;
     }
   }, {
     key: 'reset',
@@ -533,7 +534,8 @@ var TimerItem = function () {
 
       this.minuteClock = parsedMinutes;
       this.secondClock = parsedSeconds;
-      this.pause();
+      this.active = false;
+      this.completed = false;
 
       var evenMinute = this.secondClock % 60 === 0;
       this.counterEl.innerHTML = this.tickTemplate(evenMinute ? this.minuteClock + 1 : this.minuteClock, evenMinute ? 0 : this.secondClock);
@@ -541,46 +543,27 @@ var TimerItem = function () {
   }, {
     key: 'pause',
     value: function pause() {
-      if (this.deleted) return;
       this.active = false;
-      clearTimeout(this.tickTimeout);
-      this.el.classList.add('paused');
-      if (this.counterEl.classList.contains('pending')) {
-        this.makeunPending();
-      }
     }
   }, {
     key: 'unpause',
     value: function unpause() {
-      if (this.deleted) return;
       this.active = true;
-      this.tick();
-      this.el.classList.remove('paused');
-      if (this.secondClock < 10) {
-        this.makePending();
-      }
     }
   }, {
     key: 'setMinutes',
     value: function setMinutes() {
-      this.secondClock = this.minuteClock * 60;
+      this.secondClock = 60;
       this.minuteClock -= 1;
       this.tick();
     }
   }, {
-    key: 'tick',
-    value: function tick() {
-      this.tickTimeout = setTimeout(this.run.bind(this), 1000);
-    }
-  }, {
-    key: 'makePending',
-    value: function makePending() {
-      this.counterEl.classList.add('pending');
-    }
-  }, {
-    key: 'makeunPending',
-    value: function makeunPending() {
-      this.counterEl.classList.remove('pending');
+    key: 'speak',
+    value: function speak() {
+      if (typeof window.speechSynthesis !== 'undefined') {
+        var msg = new SpeechSynthesisUtterance(this.name + ' is done!');
+        window.speechSynthesis.speak(msg);
+      }
     }
   }, {
     key: 'bing',
@@ -589,19 +572,15 @@ var TimerItem = function () {
       this.bingSound.play();
       if (this.bingCount <= 0) {
         clearInterval(this.alarmInterval);
-        this.counterEl.classList.remove('pending');
+        this.pending = false;
         this.bingCount = 3;
-        if (typeof window.speechSynthesis !== 'undefined') {
-          var msg = new SpeechSynthesisUtterance(this.name + ' is done!');
-          window.speechSynthesis.speak(msg);
-        }
+        setTimeout(this.boundSpeak, 400);
       }
     }
   }, {
-    key: 'finish',
-    value: function finish() {
-      this.alarmInterval = setInterval(this.bing.bind(this), 1000);
-      this.el.classList.add('complete');
+    key: 'tick',
+    value: function tick() {
+      this.tickTimeout = setTimeout(this.boundRun, 1000);
     }
   }, {
     key: 'run',
@@ -609,7 +588,7 @@ var TimerItem = function () {
       this.secondClock -= 1;
       this.counterEl.innerHTML = this.tickTemplate(this.minuteClock, this.secondClock);
       if (this.minuteClock === 0 && this.secondClock <= 10) {
-        this.makePending();
+        this.pending = true;
       }
 
       if (this.secondClock > 0) {
@@ -617,8 +596,68 @@ var TimerItem = function () {
       } else if (this.minuteClock > 0) {
         this.setMinutes();
       } else {
-        this.finish();
+        this.completed = true;
       }
+    }
+  }, {
+    key: 'deleted',
+    set: function set(isDeleted) {
+      if (this.active || this.deleted && isDeleted) return;
+      this._deleted = isDeleted;
+      if (isDeleted) {
+        this.el.classList.add('deleted');
+      } else {
+        this.el.classList.remove('deleted');
+      }
+    },
+    get: function get() {
+      return this._deleted;
+    }
+  }, {
+    key: 'active',
+    set: function set(isActive) {
+      if (this.deleted || this.active && isActive) return;
+      this._active = isActive;
+      if (isActive) {
+        this.tick();
+        this.el.classList.remove('paused');
+        if (this.minuteClock === 0 && this.secondClock < 5) {
+          this.pending = true;
+        }
+      } else {
+        clearTimeout(this.tickTimeout);
+        this.el.classList.add('paused');
+        this.pending = false;
+      }
+    },
+    get: function get() {
+      return this._active;
+    }
+  }, {
+    key: 'pending',
+    set: function set(isPending) {
+      if (this.pending && isPending) return false;
+      this._pending = isPending;
+      if (isPending) {
+        this.counterEl.classList.add('pending');
+      } else {
+        this.counterEl.classList.remove('pending');
+      }
+    }
+  }, {
+    key: 'completed',
+    set: function set(isComplete) {
+      if (this.completed && isComplete) return;
+      this._completed = isComplete;
+      if (isComplete) {
+        this.alarmInterval = setInterval(this.boundBing, 400);
+        this.el.classList.add('complete');
+      } else {
+        this.el.classList.remove('complete');
+      }
+    },
+    get: function get() {
+      return this._completed;
     }
   }]);
 
@@ -721,7 +760,7 @@ var TimerList = function () {
     key: 'getStoredTimers',
     value: function getStoredTimers() {
       var timers = _jsCookie2.default.getJSON(_constants2.default.cookieName) || [];
-      return timers.map(this.createTimer);
+      return timers.map(this.createTimer.bind(this));
     }
   }, {
     key: 'handleFormSubmit',

@@ -1,3 +1,17 @@
+@mixin enabled {
+  cursor: pointer;
+  opacity: 1;
+}
+
+@mixin disabled {
+  cursor: default;
+  opacity: 0.15;
+
+  &:hover {
+    background-color: #fff;
+  }
+}
+
 @mixin vertical-align-middle {
   top: 50%;
   -webkit-transform: translateY(-50%);
